@@ -1,4 +1,4 @@
-FROM rust:1.88-bookworm
+FROM rust:latest
 
 # Node.js 22 LTS
 RUN apt-get update && apt-get install -y \
@@ -14,10 +14,7 @@ RUN apt-get update && apt-get install -y \
 # WASM tooling
 RUN rustup target add wasm32-unknown-unknown
 
-RUN cargo install \
-    wasm-pack \
-    cargo-watch \
-    wasm-bindgen-cli
+RUN cargo install wasm-pack cargo-watch wasm-bindgen-cli
 
 WORKDIR /workspace
 
