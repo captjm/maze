@@ -1,13 +1,89 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maze</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+    }
+
+    video {
+      display: none;
+    }
+
+    #controls {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      translate: -50% 0;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    /* Show controls on hover anywhere on the page */
+    body:hover #controls {
+      opacity: 1;
+    }
+
+    #btn-rewind {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #btn-rewind:hover {
+      background: rgba(255, 255, 255, 0.28);
+    }
+
+    #btn-rewind:active {
+      background: rgba(255, 255, 255, 0.38);
+      scale: 0.93;
+    }
+
+    #btn-rewind svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<video id="videoA" muted playsinline></video>
+<video id="videoB" muted playsinline></video>
+
+<div id="controls">
+  <button id="btn-rewind" title="Rewind to start" aria-label="Rewind to start">
+    <!-- skip-back icon -->
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="19 20 9 12 19 4 19 20"/>
+      <line x1="5" y1="19" x2="5" y2="5"/>
+    </svg>
+  </button>
+</div>
+
+<script type="module" src="./src/main.ts"></script>
+</body>
 </html>
