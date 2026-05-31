@@ -1,10 +1,9 @@
 // src/state/startLoop.ts
-import type { TimelineEngine } from "../timeline/TimelineEngine";
-import type { MediaRuntime }   from "../player/MediaRuntime";
-import type { CanvasRenderer } from "../player/CanvasRenderer";
-import { VideoFrameScheduler } from "../player/VideoFrameScheduler";
-import { makeCommandProducer } from "../timeline/toCommands";
-import type { Asset, Clip }    from "../timeline/types";
+import type { TimelineEngine }   from "../timeline/TimelineEngine";
+import type { IRenderer }        from "../player/IRenderer";
+import { WebCodecsRuntime }      from "../player/WebCodecsRuntime";
+import { makeCommandProducer }   from "../timeline/toCommands";
+import type { Asset }            from "../timeline/types";
 
 export interface PlaybackControls {
     rewind(): void;
@@ -12,69 +11,53 @@ export interface PlaybackControls {
 
 export function startLoop(
     engine:   TimelineEngine,
-    runtime:  MediaRuntime,
-    renderer: CanvasRenderer,
+    runtime:  WebCodecsRuntime,
+    renderer: IRenderer,
     assets:   Asset[]
 ): PlaybackControls {
-    const assetMap = new Map(assets.map(a => [a.id, a.url]));
+    const assetMap        = new Map(assets.map(a => [a.id, a.url]));
+    let commandProducer   = makeCommandProducer(assetMap);
+    let startTime         = performance.now();
+    let rafId             = 0;
 
-    let commandProducer    = makeCommandProducer(assetMap);
-    let currentPrimaryClip: Clip | null = null;
-
-    const scheduler = new VideoFrameScheduler(runtime.getPrimary());
-
-    function boot(): void {
-        // Cold start: drive timeline at t=0 before the first rVFC fires.
-        // This issues SET_SOURCE / SET_CURRENT_TIME so the decoder can
-        // begin loading frames immediately.
-        const state    = engine.getPlaybackState(0);
-        const commands = commandProducer(state);
-        runtime.execute(commands);
-        currentPrimaryClip = state.primaryClip;
-    }
-
-    function onFrame(mediaTime: number): void {
-        // Convert video file position → timeline position.
-        // clip.start  = where this clip sits on the timeline (seconds)
-        // clip.mediaStart = offset into the source file (default 0)
-        const clip         = currentPrimaryClip;
-        const timelineTime = clip
-            ? clip.start + (mediaTime - (clip.mediaStart ?? 0))
-            : mediaTime;
+    function tick(): void {
+        const timelineTime = (performance.now() - startTime) / 1000;
 
         const state    = engine.getPlaybackState(timelineTime);
         const commands = commandProducer(state);
 
-        const hasSwap = commands.some(c => c.type === "SWAP");
+        // WebCodecsRuntime only understands SET_SOURCE, SWAP, SET_BLEND
+        runtime.execute(commands as any);
 
-        runtime.execute(commands);
-
-        if (hasSwap) {
-            // Re-register rVFC on the new primary element
-            scheduler.setVideo(runtime.getPrimary());
-        }
-
-        currentPrimaryClip = state.primaryClip;
-
-        renderer.render(
-            runtime.getPrimary(),
-            runtime.getSecondary(),
-            runtime.getBlend()
+        // Get the decoded frames for this moment
+        const { primary, secondary, blend } = runtime.getFrames(
+            state.primaryMediaTime,
+            state.secondaryMediaTime,
         );
+
+        renderer.render(primary, secondary, blend);
+
+        rafId = requestAnimationFrame(tick);
+    }
+
+    function boot(): void {
+        // Kick off demuxers for the first clip immediately at t=0
+        const state    = engine.getPlaybackState(0);
+        const commands = commandProducer(state);
+        runtime.execute(commands as any);
     }
 
     boot();
-    scheduler.start(onFrame);
+    rafId = requestAnimationFrame(tick);
 
     return {
         rewind() {
-            scheduler.stop();
+            cancelAnimationFrame(rafId);
             runtime.reset();
-            commandProducer    = makeCommandProducer(assetMap);
-            currentPrimaryClip = null;
+            commandProducer = makeCommandProducer(assetMap);
+            startTime       = performance.now();
             boot();
-            scheduler.setVideo(runtime.getPrimary());
-            scheduler.start(onFrame);
+            rafId = requestAnimationFrame(tick);
         }
     };
 }

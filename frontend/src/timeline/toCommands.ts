@@ -1,22 +1,21 @@
 // src/timeline/toCommands.ts
 import type { PlaybackState } from "./types";
-import type { Command } from "../player/commands";
+import type { Command }       from "../player/commands";
 
 /**
- * Stateful command producer. Call makeCommandProducer() once per playback
- * session; the returned function is called every animation frame.
+ * Produces the minimal set of commands needed to keep the runtime in sync
+ * with the current PlaybackState.
  *
- * SWAP logic
- * ──────────
- * We track the assetId of what is currently loaded in the secondary slot.
- * SWAP is emitted exactly once: the first frame where the engine reports
- * the clip that was secondary is now primary (transition completed).
+ * Commands emitted:
+ *   SET_SOURCE  — once per new assetId entering a role
+ *   SWAP        — once when secondary becomes primary (transition complete)
+ *   SET_BLEND   — every frame
  *
- * PLAY is emitted only when src actually changes — not every frame —
- * to avoid interrupting the decoder.
+ * SET_CURRENT_TIME and PLAY are intentionally absent:
+ *   - WebCodecsRuntime drives time itself via getFrames(mediaTime)
+ *   - If a future runtime needs them, extend Command and add them here
  */
 export function makeCommandProducer(assetMap: Map<string, string>) {
-    // What assetId is currently in each logical role, as the runtime sees it
     let primaryAssetId:   string | null = null;
     let secondaryAssetId: string | null = null;
 
@@ -26,48 +25,38 @@ export function makeCommandProducer(assetMap: Map<string, string>) {
         const wantPrimary   = state.primaryClip?.assetId   ?? null;
         const wantSecondary = state.secondaryClip?.assetId ?? null;
 
-        // ── Detect completed transition → SWAP ────────────────────────────
-        // The transition is done when what was secondary is now primary.
-        // Emit SWAP first so subsequent SET_SOURCE commands address correct slots.
+        // ── SWAP ──────────────────────────────────────────────────────────
         if (
             secondaryAssetId !== null &&
-            wantPrimary === secondaryAssetId &&
-            wantSecondary !== secondaryAssetId
+            wantPrimary      === secondaryAssetId &&
+            wantSecondary    !== secondaryAssetId
         ) {
             cmds.push({ type: "SWAP" });
-            // After swap: our tracking flips too
             primaryAssetId   = secondaryAssetId;
             secondaryAssetId = null;
         }
 
-        // ── Primary slot ──────────────────────────────────────────────────
+        // ── Primary ───────────────────────────────────────────────────────
         if (wantPrimary && wantPrimary !== primaryAssetId) {
             const src = assetMap.get(wantPrimary);
             if (src) {
                 cmds.push({ type: "SET_SOURCE", role: "primary", src });
-                cmds.push({ type: "PLAY",       role: "primary" });
                 primaryAssetId = wantPrimary;
             }
         }
 
-        // ── Secondary slot (idle buffer — safe to write) ──────────────────
+        // ── Secondary ─────────────────────────────────────────────────────
         if (wantSecondary && wantSecondary !== secondaryAssetId) {
             const src = assetMap.get(wantSecondary);
             if (src) {
                 cmds.push({ type: "SET_SOURCE", role: "secondary", src });
-                cmds.push({ type: "PLAY",       role: "secondary" });
                 secondaryAssetId = wantSecondary;
             }
         }
 
-        // ── Blend value ───────────────────────────────────────────────────
+        // ── Blend ─────────────────────────────────────────────────────────
         cmds.push({ type: "SET_BLEND", value: state.transitionProgress });
 
         return cmds;
     };
-}
-
-/** Build the assetId → URL map from a timeline's asset list. */
-export function buildAssetMap(assets: { id: string; url: string }[]): Map<string, string> {
-    return new Map(assets.map(a => [a.id, a.url]));
 }

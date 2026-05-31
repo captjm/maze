@@ -4,12 +4,12 @@
     {
       "id": "video-1",
       "type": "video",
-      "url": "/videos/A.mp4"
+      "url": "/videos/a.mp4"
     },
     {
       "id": "video-2",
       "type": "video",
-      "url": "/videos/B.mp4"
+      "url": "/videos/b.mp4"
     }
   ],
   "tracks": [
@@ -24,7 +24,7 @@
         },
         {
           "assetId": "video-2",
-          "start": 9,
+          "start": 10,
           "duration": 19
         }
       ]

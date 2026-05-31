@@ -19,12 +19,15 @@ export class VideoFrameScheduler {
     private video:    HTMLVideoElement;
     private callback: FrameCallback | null = null;
     private running   = false;
-
+    private readonly schedule: () => void;
     // rAF fallback
     private rafId:    number | null = null;
 
     constructor(video: HTMLVideoElement) {
         this.video = video;
+        this.schedule = supportsRVFC
+            ? this.scheduleVideoFrame
+            : this.scheduleAnimationFrame;
     }
 
     start(cb: FrameCallback): void {
@@ -52,22 +55,22 @@ export class VideoFrameScheduler {
         }
     }
 
-    private schedule(): void {
+    private scheduleVideoFrame = () => {
         if (!this.running || !this.callback) return;
-
-        if (supportsRVFC) {
-            this.video.requestVideoFrameCallback((_now, meta) => {
+        this.video.requestVideoFrameCallback((_now, meta) => {
                 if (!this.running) return;
                 this.callback!(meta.mediaTime);
                 this.schedule();
-            });
-        } else {
+        });
+    }
+
+    private scheduleAnimationFrame = () => {
+        if (!this.running || !this.callback) return;
             // rAF fallback: use video.currentTime as best approximation
             this.rafId = requestAnimationFrame(() => {
                 if (!this.running) return;
                 this.callback!(this.video.currentTime);
                 this.schedule();
             });
-        }
     }
 }

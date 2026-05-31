@@ -29,6 +29,8 @@ export interface Clip {
 }
 
 export interface PlaybackState {
+    // secondaryMediaTime: number;
+    // primaryMediaTime: number;
     primaryClip: Clip | null;
     secondaryClip: Clip | null;
     transitionProgress: number;
