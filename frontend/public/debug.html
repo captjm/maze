@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Maze — debug</title>
+    <style>
+        body { font-family: monospace; background: #111; color: #eee; padding: 24px; margin: 0; }
+        h2   { color: #7cf; margin: 32px 0 8px; }
+        .ok  { color: #6f6; }
+        .err { color: #f66; }
+        .warn { color: #fa0; }
+        .dim { color: #888; }
+        canvas { display: block; margin: 8px 0; border: 1px solid #444; background: #000; }
+        table  { border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+        td, th { padding: 4px 12px; border: 1px solid #333; text-align: left; }
+        th     { background: #222; }
+        #log   { white-space: pre-wrap; font-size: 13px; line-height: 1.8; }
+        input[type=file] { color: #eee; margin: 8px 0; }
+        button { background: #235; color: #7cf; border: 1px solid #47a; padding: 6px 16px;
+            border-radius: 4px; cursor: pointer; font-family: monospace; font-size: 14px; }
+        button:hover { background: #347; }
+        #frames { display: flex; gap: 8px; flex-wrap: wrap; min-height: 40px; }
+    </style>
+</head>
+<body>
+<h1>Maze — pipeline debug</h1>
+
+<h2>Select file</h2>
+<input type="file" id="file-input" accept="video/mp4,.mp4" />
+<button id="run-btn">Run diagnostics</button>
+
+<h2>1. WebCodecs support</h2>
+<div id="webcodecs-check"></div>
+
+<h2>2. Raw MP4 box inspection (first 512 bytes)</h2>
+<div id="box-info"></div>
+
+<h2>3. MP4Box parsing</h2>
+<div id="mp4box-info"></div>
+
+<h2>4. Decoded frames</h2>
+<div id="frames"></div>
+
+<h2>5. Chunk timestamps (first 10)</h2>
+<table>
+    <thead><tr><th>#</th><th>timestamp µs</th><th>timestamp s</th><th>type</th><th>duration µs</th></tr></thead>
+    <tbody id="ts-table"></tbody>
+</table>
+
+<h2>6. Log</h2>
+<div id="log"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
+<script type="module">
+
+    // ── UI refs ───────────────────────────────────────────────────────────────────
+    const logEl      = document.getElementById('log');
+    const framesEl   = document.getElementById('frames');
+    const tsTableEl  = document.getElementById('ts-table');
+    const boxInfoEl  = document.getElementById('box-info');
+    const mp4InfoEl  = document.getElementById('mp4box-info');
+
+    // ── Logging ───────────────────────────────────────────────────────────────────
+    function print(msg, cls = '') {
+        const d = document.createElement('div');
+        d.className = cls;
+        d.textContent = msg;
+        logEl.appendChild(d);
+        console.log(msg);
+    }
+    const ok   = m => print('✓ ' + m, 'ok');
+    const err  = m => print('✗ ' + m, 'err');
+    const warn = m => print('⚠ ' + m, 'warn');
+    const dim  = m => print('  ' + m, 'dim');
+    const info = m => print('ℹ ' + m);
+
+    // ── 1. WebCodecs support ──────────────────────────────────────────────────────
+    const wcDiv = document.getElementById('webcodecs-check');
+    ;[['VideoDecoder', typeof VideoDecoder !== 'undefined'],
+        ['VideoFrame',   typeof VideoFrame   !== 'undefined'],
+        ['EncodedVideoChunk', typeof EncodedVideoChunk !== 'undefined'],
+    ].forEach(([name, supported]) => {
+        const d = document.createElement('div');
+        d.className = supported ? 'ok' : 'err';
+        d.textContent = (supported ? '✓ ' : '✗ ') + name;
+        wcDiv.appendChild(d);
+    });
+
+    // ── Raw box parser — reads the first few boxes without MP4Box ─────────────────
+    function readBoxes(buffer) {
+        const view   = new DataView(buffer);
+        const boxes  = [];
+        let   offset = 0;
+        while (offset + 8 <= buffer.byteLength) {
+            const size = view.getUint32(offset);
+            const type = String.fromCharCode(
+                view.getUint8(offset+4), view.getUint8(offset+5),
+                view.getUint8(offset+6), view.getUint8(offset+7)
+            );
+            if (size === 0 || size > buffer.byteLength - offset) break;
+            boxes.push({ offset, size, type });
+            offset += size;
+        }
+        return boxes;
+    }
+
+    // ── Build AVCDecoderConfigurationRecord ───────────────────────────────────────
+    function buildDescription(avcC) {
+        if (avcC.data) return new Uint8Array(avcC.data);
+        const sps = avcC.SPS?.[0]?.nalu ?? new Uint8Array(0);
+        const pps = avcC.PPS?.[0]?.nalu ?? new Uint8Array(0);
+        const buf = new Uint8Array(7 + 2 + sps.byteLength + 2 + pps.byteLength);
+        let p = 0;
+        buf[p++]=1; buf[p++]=sps[1]??0x42; buf[p++]=sps[2]??0x00; buf[p++]=sps[3]??0x1e;
+        buf[p++]=0xff; buf[p++]=0xe1;
+        buf[p++]=(sps.byteLength>>8)&0xff; buf[p++]=sps.byteLength&0xff;
+        buf.set(sps,p); p+=sps.byteLength;
+        buf[p++]=1; buf[p++]=(pps.byteLength>>8)&0xff; buf[p++]=pps.byteLength&0xff;
+        buf.set(pps,p);
+        return buf;
+    }
+
+    // ── Main diagnostic function ──────────────────────────────────────────────────
+    async function runDiagnostics(file) {
+        // Clear previous results
+        logEl.innerHTML = ''; framesEl.innerHTML = '';
+        tsTableEl.innerHTML = ''; boxInfoEl.innerHTML = ''; mp4InfoEl.innerHTML = '';
+
+        info(`File: ${file.name}  size: ${(file.size/1024/1024).toFixed(2)} MB  type: "${file.type}"`);
+
+        // ── 2. Raw box inspection ─────────────────────────────────────────────────
+        const headBuf = await file.slice(0, 512).arrayBuffer();
+        const boxes   = readBoxes(headBuf);
+
+        if (boxes.length === 0) {
+            err('Cannot read any MP4 boxes from the first 512 bytes — file may be corrupt or not MP4');
+        } else {
+            info(`Top-level boxes in first 512 bytes:`);
+            boxes.forEach(b => {
+                const line = document.createElement('div');
+                line.className = b.type === 'ftyp' || b.type === 'moov' || b.type === 'moof' ? 'ok' : 'dim';
+                line.textContent = `  [${b.offset.toString().padStart(6)}]  ${b.type}  size=${b.size}`;
+                boxInfoEl.appendChild(line);
+            });
+
+            const types = boxes.map(b => b.type);
+            const hasFtyp = types.includes('ftyp');
+            const hasMoov = types.includes('moov');
+            const hasMoof = types.includes('moof');
+
+            if (!hasFtyp) warn('No ftyp box — file may not be a valid MP4');
+            if (!hasMoov && !hasMoof) warn('No moov or moof box found in first 512 bytes — may be normal for large fMP4');
+            if (hasMoov)  {
+                const d = document.createElement('div');
+                d.className = 'ok';
+                d.textContent = '✓ moov found early — good for streaming';
+                boxInfoEl.appendChild(d);
+            }
+
+            // Read ftyp brand
+            if (hasFtyp) {
+                const ftypBox = boxes.find(b => b.type === 'ftyp');
+                const view    = new DataView(headBuf, ftypBox.offset + 8);
+                const brand   = String.fromCharCode(view.getUint8(0),view.getUint8(1),view.getUint8(2),view.getUint8(3));
+                const d = document.createElement('div');
+                d.textContent = `  ftyp major brand: "${brand}"`;
+                d.className = (brand === 'iso5' || brand === 'isom') ? 'ok' : 'warn';
+                boxInfoEl.appendChild(d);
+            }
+        }
+
+        // ── 3 & 4 & 5. MP4Box parse + decode ─────────────────────────────────────
+        info('Starting MP4Box parse…');
+
+        await new Promise((resolve) => {
+            const mp4file     = MP4Box.createFile();
+            let   offset      = 0;
+            let   configured  = false;
+            let   frameCount  = 0;
+            let   chunkCount  = 0;
+            const pending     = [];
+            const MAX_FRAMES  = 5;
+            const MAX_CHUNKS  = 10;
+
+            let decoder;
+
+            mp4file.onError = (e) => {
+                err('MP4Box error: ' + (e?.message ?? JSON.stringify(e)));
+                resolve();
+            };
+
+            mp4file.onReady = (info) => {
+                const d = document.createElement('div');
+                d.className = 'ok';
+                d.textContent = '✓ MP4Box onReady fired';
+                mp4InfoEl.appendChild(d);
+
+                dim('All tracks: ' + info.tracks.map(t => `${t.id}:${t.type}(${t.codec})`).join(', '));
+
+                const track = info.tracks.find(t => t.type === 'video');
+                if (!track) { err('No video track'); resolve(); return; }
+
+                ok(`Video track: id=${track.id}  codec="${track.codec}"  ${track.video.width}×${track.video.height}  timescale=${track.timescale}  samples=${track.nb_samples}`);
+
+                const trak = mp4file.getTrackById(track.id);
+                const entry = trak?.mdia?.minf?.stbl?.stsd?.entries?.[0];
+                dim('stsd entry keys: ' + Object.keys(entry ?? {}).join(', '));
+
+                const avcC = entry?.avcC;
+                if (!avcC) {
+                    err('avcC box missing — is codec really H.264? codec string: ' + track.codec);
+                    console.dir(entry);
+                    resolve(); return;
+                }
+                ok('avcC box found');
+
+                const description = buildDescription(avcC);
+                dim('description length: ' + description.byteLength + ' bytes');
+                dim('description hex: ' + Array.from(description.slice(0,16)).map(b=>b.toString(16).padStart(2,'0')).join(' '));
+
+                const config = {
+                    codec:       track.codec,
+                    codedWidth:  track.video.width,
+                    codedHeight: track.video.height,
+                    description,
+                };
+
+                VideoDecoder.isConfigSupported(config).then(support => {
+                    const d2 = document.createElement('div');
+                    d2.className = support.supported ? 'ok' : 'err';
+                    d2.textContent = (support.supported ? '✓' : '✗') + ' VideoDecoder.isConfigSupported: ' + JSON.stringify(support);
+                    mp4InfoEl.appendChild(d2);
+
+                    if (!support.supported) { resolve(); return; }
+
+                    decoder = new VideoDecoder({
+                        output(frame) {
+                            frameCount++;
+                            ok(`Frame ${frameCount}: ${frame.timestamp}µs = ${(frame.timestamp/1e6).toFixed(3)}s  ${frame.displayWidth}×${frame.displayHeight}`);
+                            if (frameCount <= MAX_FRAMES) {
+                                const wrap = document.createElement('div');
+                                wrap.style.textAlign = 'center';
+                                const c   = document.createElement('canvas');
+                                const sc  = 160 / frame.displayWidth;
+                                c.width   = 160;
+                                c.height  = Math.round(frame.displayHeight * sc);
+                                c.getContext('2d').drawImage(frame, 0, 0, c.width, c.height);
+                                const lbl = document.createElement('div');
+                                lbl.className   = 'dim';
+                                lbl.textContent = `#${frameCount}  ${(frame.timestamp/1e6).toFixed(3)}s`;
+                                wrap.appendChild(c); wrap.appendChild(lbl);
+                                framesEl.appendChild(wrap);
+                            }
+                            frame.close();
+                        },
+                        error(e) {
+                            err('VideoDecoder error: ' + e.message);
+                            console.error(e);
+                        }
+                    });
+
+                    decoder.configure(config);
+                    configured = true;
+                    dim(`Flushing ${pending.length} buffered chunks to decoder…`);
+                    for (const ch of pending) decoder.decode(ch);
+                    pending.length = 0;
+                });
+
+                mp4file.setExtractionOptions(track.id, null, { nbSamples: 1 });
+                mp4file.start();
+            };
+
+            mp4file.onSamples = (_id, _user, samples) => {
+                for (const s of samples) {
+                    chunkCount++;
+                    const chunk = new EncodedVideoChunk({
+                        type:      s.is_sync ? 'key' : 'delta',
+                        timestamp: Math.round((s.cts      * 1_000_000) / s.timescale),
+                        duration:  Math.round((s.duration * 1_000_000) / s.timescale),
+                        data:      s.data,
+                    });
+
+                    if (chunkCount <= MAX_CHUNKS) {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${chunkCount}</td><td>${chunk.timestamp}</td><td>${(chunk.timestamp/1e6).toFixed(6)}</td><td>${chunk.type}</td><td>${chunk.duration}</td>`;
+                        tsTableEl.appendChild(tr);
+                    }
+
+                    if (configured) decoder.decode(chunk);
+                    else            pending.push(chunk);
+                }
+            };
+
+            mp4file.onFlush = () => {
+                if (decoder) {
+                    decoder.flush().then(() => {
+                        ok(`Complete: ${chunkCount} chunks demuxed, ${frameCount} frames decoded`);
+                        resolve();
+                    });
+                } else {
+                    warn('onFlush called but no decoder — onReady may not have fired');
+                    resolve();
+                }
+            };
+
+            // Feed the file in chunks
+            const CHUNK = 256 * 1024; // 256 KB
+            let   pos   = 0;
+
+            function feedNext() {
+                if (pos >= file.size) { mp4file.flush(); return; }
+                const slice = file.slice(pos, pos + CHUNK);
+                slice.arrayBuffer().then(buf => {
+                    buf.fileStart = pos;
+                    pos += buf.byteLength;
+                    mp4file.appendBuffer(buf);
+                    // Feed first 2MB synchronously to trigger onReady quickly,
+                    // then yield to let the event loop process onReady before continuing
+                    if (pos < 2 * 1024 * 1024) {
+                        feedNext();
+                    } else {
+                        setTimeout(feedNext, 0);
+                    }
+                });
+            }
+
+            feedNext();
+        });
+    }
+
+    // ── Wire up UI ────────────────────────────────────────────────────────────────
+    document.getElementById('run-btn').addEventListener('click', () => {
+        const f = document.getElementById('file-input').files[0];
+        if (!f) { alert('Select a file first'); return; }
+        runDiagnostics(f).catch(e => {
+            err('Unhandled error: ' + e.message);
+            console.error(e);
+        });
+    });
+
+    // Auto-run if file selected via input
+    document.getElementById('file-input').addEventListener('change', e => {
+        const f = e.target.files[0];
+        if (f) runDiagnostics(f).catch(console.error);
+    });
+
+</script>
+</body>
+</html>

@@ -1,16 +1,4 @@
 // src/player/WebCodecsRuntime.ts
-//
-// Replaces MediaRuntime for WebCodecs-based playback.
-//
-// Holds two ClipDecoder slots (primary / secondary) — the same double-buffer
-// concept as MediaRuntime but operating on decoded VideoFrames instead of
-// HTMLVideoElement.
-//
-// The SWAP command flips primaryIndex just like before.
-// SET_SOURCE creates a new ClipDecoder asynchronously; the slot is ready
-// once the promise resolves. Frames requested before that return null
-// (CanvasRenderer / WebGLRenderer already handles null gracefully via readyState).
-
 import { ClipDecoder } from "./ClipDecoder";
 
 export type WebCodecsCommand =
@@ -21,16 +9,14 @@ export type WebCodecsCommand =
 export class WebCodecsRuntime {
     private slots:        [ClipDecoder | null, ClipDecoder | null] = [null, null];
     private primaryIndex: 0 | 1 = 0;
-    private blend = 0;
-
-    // Track which URL is loaded per slot to avoid redundant decoders
+    private blend  = 0;
     private slotSrc: [string | null, string | null] = [null, null];
 
     private get secondaryIndex(): 0 | 1 {
         return this.primaryIndex === 0 ? 1 : 0;
     }
 
-    private slotFor(role: "primary" | "secondary"): 0 | 1 {
+    private idxFor(role: "primary" | "secondary"): 0 | 1 {
         return role === "primary" ? this.primaryIndex : this.secondaryIndex;
     }
 
@@ -44,24 +30,23 @@ export class WebCodecsRuntime {
                 }
 
                 case "SET_SOURCE": {
-                    const idx = this.slotFor(cmd.role);
-                    if (this.slotSrc[idx] === cmd.src) break; // already loaded
+                    const idx = this.idxFor(cmd.role);
+                    if (this.slotSrc[idx] === cmd.src) break;
 
-                    // Dispose old decoder for this slot
                     this.slots[idx]?.dispose();
-                    this.slots[idx]  = null;
+                    this.slots[idx]   = null;
                     this.slotSrc[idx] = cmd.src;
 
-                    // Create new decoder — runs in background
-                    ClipDecoder.create(cmd.src).then(dec => {
-                        // Guard: slot may have been reassigned while we awaited
-                        if (this.slotSrc[idx] === cmd.src) {
-                            this.slots[idx] = dec;
-                        } else {
-                            dec.dispose();
-                        }
-                    }).catch(e => console.error("[WebCodecsRuntime] SET_SOURCE failed:", e));
-
+                    const src = cmd.src;
+                    ClipDecoder.create(src)
+                        .then(dec => {
+                            if (this.slotSrc[idx] === src) {
+                                this.slots[idx] = dec;
+                            } else {
+                                dec.dispose();
+                            }
+                        })
+                        .catch(e => console.error("[WebCodecsRuntime] load failed:", src, e));
                     break;
                 }
 
@@ -73,37 +58,29 @@ export class WebCodecsRuntime {
         }
     }
 
-    /**
-     * Returns the current VideoFrame pair for rendering.
-     * Frames are owned by their FrameBuffers — do NOT close them.
-     * Either may be null if the decoder hasn't buffered that position yet.
-     */
     getFrames(primaryMediaTime: number, secondaryMediaTime: number): {
         primary:   VideoFrame | null;
         secondary: VideoFrame | null;
         blend:     number;
     } {
-        const primaryDec   = this.slots[this.primaryIndex];
-        const secondaryDec = this.slots[this.secondaryIndex];
+        const pDec = this.slots[this.primaryIndex];
+        const sDec = this.slots[this.secondaryIndex];
 
-        if (primaryDec)   primaryDec.evictBefore(primaryMediaTime);
-        if (secondaryDec) secondaryDec.evictBefore(secondaryMediaTime);
+        if (pDec) pDec.evictBefore(primaryMediaTime);
+        if (sDec) sDec.evictBefore(secondaryMediaTime);
 
         return {
-            primary:   primaryDec?.getFrameAt(primaryMediaTime)   ?? null,
-            secondary: secondaryDec?.getFrameAt(secondaryMediaTime) ?? null,
+            primary:   pDec?.getFrameAt(primaryMediaTime)   ?? null,
+            secondary: sDec?.getFrameAt(secondaryMediaTime) ?? null,
             blend:     this.blend,
         };
     }
 
-    getBlend(): number { return this.blend; }
-
     reset(): void {
-        for (let i = 0; i < 2; i++) {
-            this.slots[i]?.dispose();
-            this.slots[i]   = null;
-            this.slotSrc[i] = null;
-        }
+        this.slots[0]?.dispose();
+        this.slots[1]?.dispose();
+        this.slots    = [null, null];
+        this.slotSrc  = [null, null];
         this.primaryIndex = 0;
         this.blend        = 0;
     }
