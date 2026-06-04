@@ -114,7 +114,7 @@
         /* Three-column grid */
         .dbg-layout {
             display: grid;
-            grid-template-columns: 280px 1fr 260px;
+            grid-template-columns: 1fr 1fr 260px;
             height: 100%;
         }
 
@@ -178,6 +178,15 @@
             display: block;
             width: 100%;
             height: 100%;
+        }
+
+        #graph-select {
+            padding: 5px 8px;
+            font-family: inherit;
+            border-radius: 7px;
+            color: var(--text-muted);
+            background-color: transparent;
+            border: 1px solid;
         }
 
         /* ------------------------------------------------------------------ */
@@ -256,7 +265,7 @@
         <span class="badge">Debug Harness</span>
         <div id="file-wrap">
             <div id="graph-selector-container">
-                <label for="graph-select">Select:</label>
+                <label>Select:</label>
             </div>
         </div>
     </div>
@@ -295,18 +304,5 @@
 </div>
 
 <script type="module" src="./src/main.ts"></script>
-<script type="module">
-    const input  = document.getElementById("graph-file");
-    const label  = document.getElementById("file-name");
-    const overlay = document.getElementById("empty-overlay");
-
-    input.addEventListener("change", () => {
-        const file = input.files?.[0];
-        if (file) {
-            label.textContent = file.name;
-            overlay.classList.add("hidden");
-        }
-    });
-</script>
 </body>
 </html>

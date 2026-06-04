@@ -22,6 +22,8 @@ async function initGraphSelector() {
             return;
         }
 
+        const overlay = document.getElementById("empty-overlay");
+
         const select = document.createElement('select');
         select.id = 'graph-select';
 
@@ -49,9 +51,8 @@ async function initGraphSelector() {
                 const fileResponse = await fetch(fileUrl);
                 if (!fileResponse.ok) throw new Error('Failed to download graph file');
                 const graph =  GraphLoader.fromJson(await fileResponse.json() as TimelineGraphFile);
-                console.log(graph);
                 await app.loadGraph(graph);
-
+                if (overlay) overlay.classList.add("hidden");
                 ui.onGraphLoaded(app.getGraph()!);
 
                 console.log(`Graph ${selectedFile} loaded successfully!`);
