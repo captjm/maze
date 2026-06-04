@@ -1,0 +1,55 @@
+{
+  "entry": "intro",
+  "nodes": [
+    {
+      "id": "intro",
+      "source": "videos/intro.mp4",
+      "outputs": ["fork-left", "fork-right"]
+    },
+    {
+      "id": "fork-left",
+      "source": "videos/fork-left.mp4",
+      "outputs": ["left-deep", "left-shallow"]
+    },
+    {
+      "id": "fork-right",
+      "source": "videos/fork-right.mp4",
+      "outputs": ["right-only"]
+    },
+    {
+      "id": "left-deep",
+      "source": "videos/left-deep.mp4",
+      "outputs": ["ending-bad"]
+    },
+    {
+      "id": "left-shallow",
+      "source": "videos/left-shallow.mp4",
+      "outputs": ["convergence"]
+    },
+    {
+      "id": "right-only",
+      "source": "videos/right-only.mp4",
+      "outputs": ["convergence"]
+    },
+    {
+      "id": "convergence",
+      "source": "videos/convergence.mp4",
+      "outputs": ["ending-good", "ending-neutral"]
+    },
+    {
+      "id": "ending-good",
+      "source": "videos/ending-good.mp4",
+      "outputs": []
+    },
+    {
+      "id": "ending-neutral",
+      "source": "videos/ending-neutral.mp4",
+      "outputs": []
+    },
+    {
+      "id": "ending-bad",
+      "source": "videos/ending-bad.mp4",
+      "outputs": []
+    }
+  ]
+}

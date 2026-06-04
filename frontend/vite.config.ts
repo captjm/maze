@@ -6,5 +6,8 @@ export default defineConfig({
             allow: [".."]
         }
     },
+    build: {
+        sourcemap: true,
+    },
     assetsInclude: ["**/*.wasm"]
 });

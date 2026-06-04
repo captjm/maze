@@ -1,26 +1,26 @@
 // src/main.ts
-import { loadTimeline }      from "./timeline/loadTimeline";
-import { TimelineEngine }    from "./timeline/TimelineEngine";
-import { WebCodecsRuntime }  from "./player/WebCodecsRuntime";
-import { WebGLRenderer }     from "./player/WebGLRenderer";
-import { startLoop }         from "./state/startLoop";
+//
+// Application bootstrap wired to the DebugUI test harness.
+// Uses MockFactory instead of WebCodecsDecoderFactory so the full
+// application flow can be exercised without real media files.
 
-async function start(): Promise<void> {
-    if (!("VideoDecoder" in globalThis)) {
-        throw new Error("WebCodecs not supported in this browser");
-    }
+import { Application } from "./app/Application";
+import { MockFactory }  from "./test/MockFactory";
+import { DebugUI }      from "./test/DebugUI";
 
-    const timeline = await loadTimeline();
-    const engine   = new TimelineEngine(timeline);
-    const runtime  = new WebCodecsRuntime();
-    const renderer = new WebGLRenderer();
+// Use MockFactory for browser testing — swap for WebCodecsDecoderFactory
+// when real media decoding is ready.
+const app = new Application(new MockFactory());
+const ui  = new DebugUI(app);
 
-    const controls = startLoop(engine, runtime, renderer, timeline.assets);
+const graphInput = document.getElementById("graph-file") as HTMLInputElement;
 
-    const btn = document.getElementById("btn-rewind") as HTMLButtonElement;
-    btn.addEventListener("click", () => controls.rewind());
-}
+graphInput.addEventListener("change", async () => {
+    const file = graphInput.files?.[0];
+    if (!file) return;
 
-start().catch(err => {
-    console.error("[Maze] startup error:", err);
+    await app.loadGraphFile(file);
+
+    // getGraph() is guaranteed non-null immediately after loadGraphFile().
+    ui.onGraphLoaded(app.getGraph()!);
 });

@@ -1,56 +1,318 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Maze</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze — Debug Harness</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <style>
-      *, *::before, *::after { box-sizing: border-box; }
-      body { margin: 0; background: #000; overflow: hidden; }
+        /* ------------------------------------------------------------------ */
+        /* Reset & design tokens                                               */
+        /* ------------------------------------------------------------------ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-      #controls {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        translate: -50% 0;
-        z-index: 10;
-        display: flex;
-        gap: 8px;
-        opacity: 0;
-        transition: opacity 0.25s;
-      }
-      body:hover #controls { opacity: 1; }
+        :root {
+            --bg:         #0b0b12;
+            --bg-panel:   #10101c;
+            --bg-header:  #080810;
+            --border:     #1e1e30;
+            --border-hi:  #333350;
+            --text:       #c0c0d8;
+            --text-muted: #50507a;
+            --accent:     #f59e0b;
+            --green:      #22c55e;
+            --blue:       #3b82f6;
+            --mono:       "JetBrains Mono", monospace;
+            --head:       "Syne", sans-serif;
+        }
 
-      #btn-rewind {
-        display: flex; align-items: center; justify-content: center;
-        width: 40px; height: 40px; padding: 0;
-        border: none; border-radius: 50%;
-        background: rgba(255,255,255,0.15);
-        backdrop-filter: blur(8px);
-        color: #fff; cursor: pointer;
-        transition: background 0.15s;
-      }
-      #btn-rewind:hover  { background: rgba(255,255,255,0.28); }
-      #btn-rewind:active { background: rgba(255,255,255,0.38); scale: 0.93; }
-      #btn-rewind svg    { width: 18px; height: 18px; flex-shrink: 0; }
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono),monospace;
+            font-size: 13px;
+            overflow: hidden;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Top bar                                                             */
+        /* ------------------------------------------------------------------ */
+        #top-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 18px;
+            height: 44px;
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            font-family: var(--head),sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--accent);
+        }
+
+        .badge {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border: 1px solid var(--border-hi);
+            padding: 2px 7px;
+            border-radius: 3px;
+        }
+
+        #file-wrap {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #file-name {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        #file-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 13px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: var(--mono),monospace;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.14s, color 0.14s;
+        }
+        #file-btn:hover { background: var(--accent); color: #000; }
+        #graph-file     { display: none; }
+
+        /* ------------------------------------------------------------------ */
+        /* Page shell                                                          */
+        /* ------------------------------------------------------------------ */
+        #page {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #debug-root { flex: 1; overflow: hidden; }
+
+        /* Three-column grid */
+        .dbg-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 260px;
+            height: 100%;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Column chrome                                                       */
+        /* ------------------------------------------------------------------ */
+        .dbg-col {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+        .dbg-col:last-child { border-right: none; }
+
+        .dbg-panel-title {
+            flex-shrink: 0;
+            padding: 7px 13px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            background: var(--bg-header);
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Left: graph                                                         */
+        /* ------------------------------------------------------------------ */
+        #dbg-graph {
+            flex: 1;
+            overflow: auto;
+            padding: 12px;
+            background: var(--bg-panel);
+        }
+
+        #dbg-graph::-webkit-scrollbar       { width: 5px; height: 5px; }
+        #dbg-graph::-webkit-scrollbar-track { background: transparent; }
+        #dbg-graph::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+        /* ------------------------------------------------------------------ */
+        /* Centre: canvas player                                               */
+        /* ------------------------------------------------------------------ */
+        .dbg-centre { border-right: 1px solid var(--border); }
+
+        /* Title row shows current node id */
+        #dbg-now-playing {
+            font-size: 10px;
+            color: var(--green);
+            letter-spacing: 1px;
+        }
+
+        #dbg-player-wrap {
+            flex: 1;
+            position: relative; /* required for choice overlay positioning */
+            background: #060610;
+            overflow: hidden;
+        }
+
+        #dbg-player-wrap canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ------------------------------------------------------------------ */
+        /* Right: event log                                                    */
+        /* ------------------------------------------------------------------ */
+        #dbg-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        #dbg-log::-webkit-scrollbar       { width: 5px; }
+        #dbg-log::-webkit-scrollbar-track { background: transparent; }
+        #dbg-log::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+        .dbg-log-entry {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            padding: 3px 12px;
+            font-size: 11px;
+            line-height: 1.55;
+            border-bottom: 1px solid transparent;
+            transition: background 0.1s;
+        }
+        .dbg-log-entry:hover { background: #14141f; }
+
+        .dbg-ts {
+            flex-shrink: 0;
+            font-size: 9px;
+            color: var(--text-muted);
+            letter-spacing: 0.2px;
+        }
+
+        .dbg-log-system  b { color: var(--accent); }
+        .dbg-log-system    { color: #8888aa; }
+        .dbg-log-choice    { color: var(--green); }
+        .dbg-log-decoder   { color: var(--text); }
+
+        /* ------------------------------------------------------------------ */
+        /* Empty-state overlay (before any file loaded)                       */
+        /* ------------------------------------------------------------------ */
+        #empty-overlay {
+            position: fixed;
+            inset: 44px 0 0 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            pointer-events: none;
+            transition: opacity 0.35s;
+        }
+        #empty-overlay.hidden { opacity: 0; }
+
+        #empty-overlay .big {
+            font-family: var(--head),sans-serif;
+            font-size: 48px;
+            font-weight: 800;
+            color: #18182a;
+            letter-spacing: -2px;
+        }
+        #empty-overlay .hint {
+            font-size: 11px;
+            color: #20203a;
+            letter-spacing: 1px;
+        }
     </style>
-  </head>
-  <body>
-    <canvas id="canvas"></canvas>
+</head>
+<body>
+<div id="page">
 
-    <div id="controls">
-      <button id="btn-rewind" title="Rewind to start" aria-label="Rewind to start">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="19 20 9 12 19 4 19 20"/>
-          <line x1="5" y1="19" x2="5" y2="5"/>
-        </svg>
-      </button>
+    <!-- ── Top bar ─────────────────────────────────────────────────────── -->
+    <div id="top-bar">
+        <span class="logo">MAZE</span>
+        <span class="badge">Debug Harness</span>
+        <div id="file-wrap">
+            <span id="file-name">no file loaded</span>
+            <label id="file-btn" for="graph-file">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 1a1 1 0 011 1v5h5a1 1 0 010 2H9v5a1 1 0 01-2
+                             0V9H2a1 1 0 010-2h5V2a1 1 0 011-1z"/>
+                </svg>
+                Load graph.json
+            </label>
+            <input id="graph-file" type="file" accept=".json">
+        </div>
     </div>
 
-    <!-- MP4Box.js: fMP4 demuxer for WebCodecs pipeline -->
-    <script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
-    <script type="module" src="./src/main.ts"></script>
-  </body>
+    <!-- ── Three-column debug layout ───────────────────────────────────── -->
+    <div id="debug-root">
+        <div class="dbg-layout">
+
+            <!-- Left: graph visualiser -->
+            <aside class="dbg-col dbg-left">
+                <div class="dbg-panel-title">Graph</div>
+                <div id="dbg-graph"></div>
+            </aside>
+
+            <!-- Centre: canvas player -->
+            <div class="dbg-col dbg-centre">
+                <div class="dbg-panel-title" id="dbg-now-playing">Player</div>
+                <div id="dbg-player-wrap"></div>
+            </div>
+
+            <!-- Right: event log -->
+            <aside class="dbg-col dbg-right">
+                <div class="dbg-panel-title">Event log</div>
+                <div id="dbg-log"></div>
+            </aside>
+
+        </div>
+    </div>
+
+    <!-- ── Empty-state hint ────────────────────────────────────────────── -->
+    <div id="empty-overlay">
+        <div class="big">MAZE</div>
+        <div class="hint">Load a graph.json to start</div>
+    </div>
+
+</div>
+
+<script type="module" src="./src/main.ts"></script>
+<script type="module">
+    const input  = document.getElementById("graph-file");
+    const label  = document.getElementById("file-name");
+    const overlay = document.getElementById("empty-overlay");
+
+    input.addEventListener("change", () => {
+        const file = input.files?.[0];
+        if (file) {
+            label.textContent = file.name;
+            overlay.classList.add("hidden");
+        }
+    });
+</script>
+</body>
 </html>
