@@ -1,14 +1,32 @@
 services:
-  dev:
+  frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: video-player-dev
+    container_name: video-player-frontend-dev
+    user: "${UID}:${GID}"
     working_dir: /workspace
     volumes:
       - .:/workspace
     ports:
       - "5173:5173"
+    environment:
+      - NPM_CONFIG_CACHE=/workspace/.npm-cache
     command: sh -c "cd frontend && npm install && npm run dev -- --host 0.0.0.0"
+    stdin_open: true
+    tty: true
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: video-player-api-dev
+    user: "${UID}:${GID}"
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    environment:
+      - NPM_CONFIG_CACHE=/workspace/.npm-cache
+    command: sh -c "cd api && npm install && npm run dev"
     stdin_open: true
     tty: true

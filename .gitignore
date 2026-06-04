@@ -61,3 +61,4 @@ docker/*.log
 .env
 .env.local
 .env.production
+/.npm-cache/

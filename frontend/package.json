@@ -16,6 +16,7 @@
     "vite": "^8.0.12"
   },
   "dependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
     "mp4box": "^2.3.0"
   }
 }
