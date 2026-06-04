@@ -1,26 +1,70 @@
 // src/main.ts
-//
-// Application bootstrap wired to the DebugUI test harness.
-// Uses MockFactory instead of WebCodecsDecoderFactory so the full
-// application flow can be exercised without real media files.
-
 import { Application } from "./app/Application";
 import { MockFactory }  from "./test/MockFactory";
 import { DebugUI }      from "./test/DebugUI";
+import {GraphLoader} from "./timeline/GraphLoader.ts";
+import type {TimelineGraphFile} from "./timeline/types.ts";
 
-// Use MockFactory for browser testing — swap for WebCodecsDecoderFactory
-// when real media decoding is ready.
 const app = new Application(new MockFactory());
 const ui  = new DebugUI(app);
 
-const graphInput = document.getElementById("graph-file") as HTMLInputElement;
+const container = document.getElementById("graph-selector-container") || document.body;
 
-graphInput.addEventListener("change", async () => {
-    const file = graphInput.files?.[0];
-    if (!file) return;
+async function initGraphSelector() {
+    try {
+        const response = await fetch('/api/graphs');
+        if (!response.ok) throw new Error('Error loading graph list');
 
-    await app.loadGraphFile(file);
+        const graphFiles: string[] = await response.json();
 
-    // getGraph() is guaranteed non-null immediately after loadGraphFile().
-    ui.onGraphLoaded(app.getGraph()!);
-});
+        if (graphFiles.length === 0) {
+            container.innerHTML = '<p>There are no JSON files in the storage/graphs folder.</p>';
+            return;
+        }
+
+        const select = document.createElement('select');
+        select.id = 'graph-select';
+
+        const defaultOption = document.createElement('option');
+        defaultOption.textContent = '';
+        defaultOption.value = '';
+        select.appendChild(defaultOption);
+
+        graphFiles.forEach(fileName => {
+            const option = document.createElement('option');
+            option.value = fileName;
+            option.textContent = fileName;
+            select.appendChild(option);
+        });
+
+        container.appendChild(select);
+
+        select.addEventListener('change', async () => {
+            const selectedFile = select.value;
+            if (!selectedFile) return;
+
+            const fileUrl = `/api/media/graphs/${encodeURIComponent(selectedFile)}`;
+
+            try {
+                const fileResponse = await fetch(fileUrl);
+                if (!fileResponse.ok) throw new Error('Failed to download graph file');
+                const graph =  GraphLoader.fromJson(await fileResponse.json() as TimelineGraphFile);
+                console.log(graph);
+                await app.loadGraph(graph);
+
+                ui.onGraphLoaded(app.getGraph()!);
+
+                console.log(`Graph ${selectedFile} loaded successfully!`);
+            } catch (err) {
+                console.error('Error loading the selected graph:', err);
+                alert('Error processing graph file');
+            }
+        });
+
+    } catch (error) {
+        console.error('Failed to initialize graph list:', error);
+        container.innerHTML = '<p style="color: red;">Error connecting to the graph backend</p>';
+    }
+}
+
+initGraphSelector().then();

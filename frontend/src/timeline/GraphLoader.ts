@@ -49,4 +49,20 @@ export class GraphLoader {
             ),
         };
     }
+
+    static fromJson(json: TimelineGraphFile) {
+        return {
+            entry: json.entry,
+
+            // Convert the node array to a Map keyed by node.id.
+            // Using Map.entries-style construction from a mapped array is
+            // idiomatic TS and avoids a separate forEach/reduce step.
+            nodes: new Map(
+                json.nodes.map(node => [
+                    node.id,
+                    node,
+                ]),
+            ),
+        };
+    }
 }
