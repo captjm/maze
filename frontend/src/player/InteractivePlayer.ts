@@ -1,11 +1,11 @@
 // src/player/InteractivePlayer.ts
 //
-// A thin façade over PlaybackController that exposes only the actions a
+// A thin facade over PlaybackController that exposes only the actions a
 // viewer (or a UI component) needs: start playback, make a choice, and
 // query the current position.
 //
 // Why does this layer exist?
-//   PlaybackController is the low-level engine — it knows about decoder
+//   PlaybackController is the low-level engine -- it knows about decoder
 //   lifecycles, state machines, and preloading strategy. InteractivePlayer
 //   presents a vocabulary that matches what the UI needs to express:
 //   "start here", "the user chose this branch", "which node are we on?".
@@ -18,7 +18,7 @@ import type { DecoderFactory, TimelineGraph } from "../timeline/types";
 export class InteractivePlayer {
     /**
      * The underlying playback engine.
-     * Private — callers interact with InteractivePlayer's higher-level API
+     * Private -- callers interact with InteractivePlayer's higher-level API
      * only; they should not reach into the controller directly.
      */
     private readonly controller: PlaybackController;
@@ -46,7 +46,7 @@ export class InteractivePlayer {
     }
 
     /**
-     * Handle a viewer choice — jump to the selected branch node.
+     * Handle a viewer choice -- jump to the selected branch node.
      *
      * The name "choose" communicates intent at the product level
      * ("the viewer made an interactive choice"), whereas the underlying

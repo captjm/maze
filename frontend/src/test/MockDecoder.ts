@@ -49,7 +49,7 @@ export type DecoderEvent =
 
 type EventListener = (event: DecoderEvent) => void;
 
-// Global event bus — all decoder instances share this set of listeners.
+// Global event bus -- all decoder instances share this set of listeners.
 const listeners = new Set<EventListener>();
 
 export function onDecoderEvent(cb: EventListener): () => void {
@@ -88,7 +88,7 @@ function sleep(method: DecoderMethod): Promise<void> {
 export class MockDecoder implements DecoderHandle {
     public readonly source: string;
 
-    /** Simulated clip duration in ms — randomised once at construction. */
+    /** Simulated clip duration in ms -- randomised once at construction. */
     private readonly duration: number;
 
     /** rAF / interval handle for the playback tick loop. */

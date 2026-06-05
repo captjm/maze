@@ -1,0 +1,77 @@
+.topBar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 18px;
+    height: 44px;
+    background: #080810;
+    border-bottom: 1px solid #1e1e30;
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+.logo {
+    font-family: "Syne", sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #f59e0b;
+}
+
+.badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #50507a;
+    border: 1px solid #333350;
+    padding: 2px 7px;
+    border-radius: 3px;
+}
+
+.label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #50507a;
+}
+
+.select {
+    padding: 5px 24px 5px 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: #c0c0d8;
+    background-color: #080814;
+    border: 1px solid #333350;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+}
+
+.overlay {
+    position: fixed;
+    inset: 44px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(11, 11, 18, 0.95);
+    z-index: 90;
+    pointer-events: none;
+}
+
+.overlayBig {
+    font-family: "Syne", sans-serif;
+    font-size: 48px;
+    font-weight: 800;
+    color: #18182a;
+    letter-spacing: -2px;
+}
+
+.overlayHint {
+    font-size: 11px;
+    color: #40406a;
+    letter-spacing: 1px;
+}

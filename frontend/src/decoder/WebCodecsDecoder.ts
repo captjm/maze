@@ -11,7 +11,7 @@
 //   - The <video> element does not expose enough hooks for the warm/preload
 //     strategy implemented in PlaybackController.
 //
-// Current status: method bodies are stubs — the real WebCodecs pipeline
+// Current status: method bodies are stubs -- the real WebCodecs pipeline
 // (VideoDecoder, AudioDecoder, mp4box demux integration, canvas rendering)
 // will be implemented here incrementally.
 
@@ -32,7 +32,7 @@ export class WebCodecsDecoder implements DecoderHandle {
      * file at `this.source`, pipe it into mp4box for container parsing, and
      * extract the video/audio track descriptors needed for codec initialisation.
      *
-     * Idle → Loaded
+     * Idle -> Loaded
      */
     async load(): Promise<void> {
         // stub
@@ -45,7 +45,7 @@ export class WebCodecsDecoder implements DecoderHandle {
      * per track and queue them for the codec. Track timing metadata (PTS, DTS)
      * should be captured here for A/V sync.
      *
-     * Loaded → Demuxed
+     * Loaded -> Demuxed
      */
     async demux(): Promise<void> {
         // stub
@@ -60,21 +60,21 @@ export class WebCodecsDecoder implements DecoderHandle {
      * demux, feed the first N encoded chunks, and keep the decoded VideoFrames
      * in a ring buffer ready for the render loop.
      *
-     * Demuxed → Warm
+     * Demuxed -> Warm
      */
     async warm(): Promise<void> {
         // stub
     }
 
     /**
-     * Begin the render loop — draw decoded VideoFrames to the canvas on each
+     * Begin the render loop -- draw decoded VideoFrames to the canvas on each
      * animation frame, and start the audio worklet.
      *
      * TODO: Start requestVideoFrameCallback / requestAnimationFrame render
      * loop, synchronise audio via AudioContext, and resume feeding encoded
      * chunks to VideoDecoder as the playhead advances.
      *
-     * Warm → Playing
+     * Warm -> Playing
      */
     async play(): Promise<void> {
         // stub
@@ -85,7 +85,7 @@ export class WebCodecsDecoder implements DecoderHandle {
      * decoded frames and the codec instance alive so play() can resume
      * with no re-initialisation cost.
      *
-     * Playing → Warm
+     * Playing -> Warm
      */
     async pause(): Promise<void> {
         // stub

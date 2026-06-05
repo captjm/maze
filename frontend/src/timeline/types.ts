@@ -1,7 +1,7 @@
 // src/timeline/types.ts
 //
 // Central type definitions for the Maze nonlinear video player.
-// All other modules import from here — this file is the single source
+// All other modules import from here -- this file is the single source
 // of truth for the data model and the decoder/factory contracts.
 
 // ---------------------------------------------------------------------------
@@ -19,9 +19,9 @@ export type NodeId = string;
  * A single node in the nonlinear timeline graph.
  *
  * Each node represents one video segment:
- *   - `id`      — unique key used to look the node up in TimelineGraph.nodes
- *   - `source`  — URL / path of the media file that this node plays
- *   - `outputs` — ordered list of node IDs the viewer can branch to after
+ *   - `id`      -- unique key used to look the node up in TimelineGraph.nodes
+ *   - `source`  -- URL / path of the media file that this node plays
+ *   - `outputs` -- ordered list of node IDs the viewer can branch to after
  *                 this segment ends (choices, automatic continuations, etc.)
  *
  * A node with an empty `outputs` array is a terminal node (end of story).
@@ -36,7 +36,7 @@ export interface TimelineNode {
  * The in-memory representation of the entire nonlinear story graph.
  *
  * `entry` is the ID of the first node to play when a project is loaded.
- * `nodes` is a Map for O(1) lookup by ID — preferred over an array because
+ * `nodes` is a Map for O(1) lookup by ID -- preferred over an array because
  * the controller jumps to arbitrary nodes constantly during playback.
  */
 export interface TimelineGraph {
@@ -51,7 +51,7 @@ export interface TimelineGraph {
  */
 export interface TimelineGraphFile {
     entry: NodeId;
-    nodes: TimelineNode[]; // flat array — converted to Map by GraphLoader
+    nodes: TimelineNode[]; // flat array -- converted to Map by GraphLoader
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ export interface TimelineGraphFile {
 /**
  * Every managed decoder moves through these states in order:
  *
- *   Idle → Loaded → Demuxed → Warm → Playing
+ *   Idle -> Loaded -> Demuxed -> Warm -> Playing
  *                                  ↕
  *                               (pause resumes to Warm)
  *
@@ -77,14 +77,14 @@ export const NodeState = {
     Loaded: "loaded",
 
     /**
-     * The container has been demuxed — track metadata is available and
+     * The container has been demuxed -- track metadata is available and
      * encoded packets are ready to be handed to the codec (demux() completed).
      */
     Demuxed: "demuxed",
 
     /**
      * The codec is initialised and the first frames are decoded into GPU
-     * memory — the segment can start playing with zero latency (warm() completed).
+     * memory -- the segment can start playing with zero latency (warm() completed).
      */
     Warm: "warm",
 
@@ -109,29 +109,29 @@ export type NodeState = typeof NodeState[keyof typeof NodeState];
  * (e.g. warm the next nodes while the current one is playing).
  *
  * Implementations:
- *   - WebCodecsDecoder  — real decoder backed by the browser WebCodecs API
- *   - MockDecoder       — logs calls to the console, used in tests/dev
+ *   - WebCodecsDecoder  -- real decoder backed by the browser WebCodecs API
+ *   - MockDecoder       -- logs calls to the console, used in tests/dev
  */
 export interface DecoderHandle {
     /** The media source URL/path this decoder was created for. */
     readonly source: string;
 
-    /** Fetch and open the media file. Idle → Loaded. */
+    /** Fetch and open the media file. Idle -> Loaded. */
     load(): Promise<void>;
 
-    /** Parse container format, extract track info and encoded packets. Loaded → Demuxed. */
+    /** Parse container format, extract track info and encoded packets. Loaded -> Demuxed. */
     demux(): Promise<void>;
 
     /**
      * Initialise the codec and pre-decode the first frames into a GPU buffer
-     * so that play() starts without any visible stutter. Demuxed → Warm.
+     * so that play() starts without any visible stutter. Demuxed -> Warm.
      */
     warm(): Promise<void>;
 
-    /** Begin rendering frames. Warm → Playing. */
+    /** Begin rendering frames. Warm -> Playing. */
     play(): Promise<void>;
 
-    /** Pause rendering. Playing → Warm (decoder stays ready to resume). */
+    /** Pause rendering. Playing -> Warm (decoder stays ready to resume). */
     pause(): Promise<void>;
 
     /**
@@ -154,8 +154,8 @@ export interface DecoderHandle {
  * in the Idle state.
  *
  * Implementations:
- *   - WebCodecsDecoderFactory — produces WebCodecsDecoder instances
- *   - MockFactory             — produces MockDecoder instances
+ *   - WebCodecsDecoderFactory -- produces WebCodecsDecoder instances
+ *   - MockFactory             -- produces MockDecoder instances
  */
 export interface DecoderFactory {
     create(source: string): DecoderHandle;

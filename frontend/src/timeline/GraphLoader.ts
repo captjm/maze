@@ -11,7 +11,7 @@ export class GraphLoader {
      * TimelineGraph ready for playback.
      *
      * Why a static method?
-     * GraphLoader has no per-instance state — it is essentially a pure
+     * GraphLoader has no per-instance state -- it is essentially a pure
      * transformation function. Keeping it static makes call sites cleaner
      * (`GraphLoader.fromFile(f)` vs `new GraphLoader().fromFile(f)`).
      *
@@ -31,7 +31,7 @@ export class GraphLoader {
         // Read the entire file as a UTF-8 string.
         const text = await file.text();
 
-        // Parse and cast — no runtime schema validation yet; malformed files
+        // Parse and cast -- no runtime schema validation yet; malformed files
         // will surface as runtime errors when nodes are accessed.
         const json = JSON.parse(text) as TimelineGraphFile;
 

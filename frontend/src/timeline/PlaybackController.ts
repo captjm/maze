@@ -4,7 +4,7 @@
 //
 // Responsibilities:
 //   1. Manage a pool of ManagedNode entries (one per visited/preloaded node).
-//   2. Drive each decoder through the Idle → Loaded → Demuxed → Warm →
+//   2. Drive each decoder through the Idle -> Loaded -> Demuxed -> Warm ->
 //      Playing state machine.
 //   3. Seamlessly switch playback between nodes on jump() calls.
 //   4. Proactively warm the output nodes of whatever is currently playing
@@ -34,8 +34,8 @@ export class PlaybackController {
      * Keeps decoders alive (and potentially warm) so we don't re-load a
      * segment the viewer might jump back to.
      *
-     * Key   — NodeId
-     * Value — ManagedNode (node metadata + decoder + current state)
+     * Key   -- NodeId
+     * Value -- ManagedNode (node metadata + decoder + current state)
      */
     private readonly managedNodes = new Map<NodeId, ManagedNode>();
 
@@ -77,7 +77,7 @@ export class PlaybackController {
 
             if (current) {
                 await current.decoder.pause();
-                // Revert state to Warm — the decoder stays buffered in memory
+                // Revert state to Warm -- the decoder stays buffered in memory
                 // in case the viewer jumps back to this node later.
                 current.state = NodeState.Warm;
             }
@@ -89,7 +89,7 @@ export class PlaybackController {
         this.currentNodeId = nodeId;
 
         // Start warming the successor nodes in the background.
-        // `void` discards the promise intentionally — failures here should
+        // `void` discards the promise intentionally -- failures here should
         // not interrupt playback; they only affect future transition latency.
         void this.preloadOutputs(nodeId);
     }
@@ -164,15 +164,15 @@ export class PlaybackController {
      * whatever state the decoder reached, without re-running earlier steps.
      *
      * State machine transitions triggered here:
-     *   Idle     → load()  → Loaded
-     *   Loaded   → demux() → Demuxed
-     *   Demuxed  → warm()  → Warm
+     *   Idle     -> load()  -> Loaded
+     *   Loaded   -> demux() -> Demuxed
+     *   Demuxed  -> warm()  -> Warm
      */
     private async ensureWarm(nodeId: NodeId): Promise<ManagedNode> {
         // getOrCreate ensures the ManagedNode entry exists in the cache.
         const managed = this.getOrCreateManagedNode(nodeId);
 
-        // Already at or past the target state — nothing to do.
+        // Already at or past the target state -- nothing to do.
         if (
             managed.state === NodeState.Warm ||
             managed.state === NodeState.Playing

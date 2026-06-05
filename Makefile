@@ -2,7 +2,7 @@
 # Config
 # =========================
 DC = docker compose
-SERVICE = dev
+SERVICE = api
 
 FRONTEND = frontend
 WASM = wasm
