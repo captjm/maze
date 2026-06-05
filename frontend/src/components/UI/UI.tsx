@@ -1,3 +1,4 @@
+// src/components/UI/UI.tsx
 // src/test/DebugUI.tsx
 import React, { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
 import type { Application } from "../../app/Application";
@@ -15,9 +16,10 @@ export interface DebugUIRef {
 
 interface DebugUIProps {
     app: Application;
+    onGraphMutated: (graph: TimelineGraph) => void;
 }
 
-export const UI = forwardRef<DebugUIRef, DebugUIProps>(({ app }, ref) => {
+export const UI = forwardRef<DebugUIRef, DebugUIProps>(({ app, onGraphMutated }, ref) => {
     const [graph, setGraph] = useState<TimelineGraph | null>(null);
     const [playingNodeId, setPlayingNodeId] = useState<string | null>(null);
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -138,7 +140,9 @@ export const UI = forwardRef<DebugUIRef, DebugUIProps>(({ app }, ref) => {
         }
         setGraph(updatedGraph);
         addLog("system", `Graph edited · ${updatedGraph.nodes.size} nodes`);
-    }, [addLog]);
+
+        onGraphMutated({ ...updatedGraph });
+    }, [addLog, onGraphMutated]);
 
     const handlePreviewRequest = useCallback(async (nodeId: string) => {
         addLog("choice", `▶ preview <b>${nodeId}</b> (from start)`);

@@ -65,4 +65,15 @@ export class GraphLoader {
             ),
         };
     }
+
+    public static toJson(graph: TimelineGraph) {
+        return {
+            entry: graph.entry,
+            nodes: Array.from(graph.nodes.values()).map(node => ({
+                id: node.id,
+                source: node.source,
+                outputs: node.outputs
+            }))
+        };
+    }
 }

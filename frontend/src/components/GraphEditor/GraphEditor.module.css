@@ -1,3 +1,4 @@
+/* src/components/GraphEditor/GraphEditor.module.css */
 .editor {
     position: relative;
     display: flex;
@@ -6,7 +7,13 @@
     flex: 1;
 }
 
-.toolBar {
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.toolbar {
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -38,12 +45,12 @@
     position: absolute;
     right: 8px;
     bottom: 6px;
-    color: rgba(255,255,255,0.18);
+    color: rgba(255, 255, 255, 0.18);
     font-size: 9px;
     font-family: JetBrains Mono, monospace;
 }
 
-.toolBarInfo {
+.toolbarInfo {
     margin-left: auto;
     font-size: 8px;
     color: #30305a;
@@ -52,7 +59,7 @@
 
 .tbBtn {
     background: transparent;
-    font-family: "JetBrains Mono",monospace;
+    font-family: "JetBrains Mono", monospace;
     font-size: 9px;
     font-weight: 700;
     padding: 3px 9px;

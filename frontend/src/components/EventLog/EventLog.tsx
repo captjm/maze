@@ -1,3 +1,4 @@
+// src/components/EventLog/EventLog.tsx
 import React from "react";
 
 export interface LogEntry {

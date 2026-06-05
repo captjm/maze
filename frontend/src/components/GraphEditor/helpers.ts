@@ -1,3 +1,4 @@
+// src/components/GraphEditor/helpers.ts
 export function hue(id: string): number {
     let h = 0;
     for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;

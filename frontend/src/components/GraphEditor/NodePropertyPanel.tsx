@@ -1,3 +1,4 @@
+// src/components/GraphEditor/NodePropertyPanel.tsx
 import type {TimelineGraph, TimelineNode} from "../../timeline/types.ts";
 import styles from "./NodePropertyPanel.module.css";
 import React, {useEffect, useState} from "react";
@@ -8,7 +9,7 @@ interface NodePanelProps {
     node: TimelineNode;
     graph: TimelineGraph;
     onClose: () => void;
-    onSave: (oldId: string, newId: string, newSrc: string) => void;
+    onSave: (oldId: string, updated: TimelineNode) => void;
     onDelete: (id: string) => void;
     onSetEntry: (id: string) => void;
     onPreview: (id: string) => Promise<void>;
@@ -41,7 +42,8 @@ export const NodePropertyPanel = ({
             <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10}}>
                 <span style={{fontSize: 9, letterSpacing: 2, color: "#50507a"}}>NODE EDITOR</span>
                 <button onClick={onClose}
-                        className={styles.iconBtn}>✕</button>
+                        className={styles.iconBtn}>✕
+                </button>
             </div>
 
             <label className={styles.lbl}>ID</label>
@@ -89,7 +91,8 @@ export const NodePropertyPanel = ({
 
             <div style={{display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10}}>
                 <button onClick={() => onPreview(node.id)}
-                        className={clsx(styles.actBtn, styles.actBtnGreen)}>▶ Preview</button>
+                        className={clsx(styles.actBtn, styles.actBtnGreen)}>▶ Preview
+                </button>
                 {!isEntry ? (
                     <button onClick={() => onSetEntry(node.id)}
                             className={clsx(styles.actBtn, styles.actBtnYellow)}>★ Set Entry</button>
@@ -97,13 +100,24 @@ export const NodePropertyPanel = ({
                     <span style={{fontSize: 9, color: "#f59e0b", alignSelf: "center"}}>★ ENTRY</span>
                 )}
                 <button onClick={() => onDelete(node.id)}
-                        className={clsx(styles.actBtn, styles.actBtnRed)}>🗑 Delete</button>
+                        className={clsx(styles.actBtn, styles.actBtnRed)}>🗑 Delete
+                </button>
             </div>
 
             <div style={{borderTop: "1px solid #1a1a2e", paddingTop: 8, marginTop: 4}}>
-                <button onClick={() => onSave(node.id, idVal.trim(), srcVal.trim())}
-                        className={clsx(styles.actBtn, styles.actBtnBlue)}
-                        style={{width: "100%"}}>✓ Apply Changes
+                <button
+                    onClick={() => {
+                        const updatedNode: TimelineNode = {
+                            id: idVal.trim(),
+                            source: srcVal.trim(),
+                            outputs: [...node.outputs]
+                        };
+                        onSave(node.id, updatedNode);
+                    }}
+                    className={clsx(styles.actBtn, styles.actBtnBlue)}
+                    style={{width: "100%"}}
+                >
+                    ✓ Apply Changes
                 </button>
             </div>
         </div>

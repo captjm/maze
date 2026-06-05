@@ -1,3 +1,4 @@
+/* src/components/GraphEditor/NodePropertyPanel.module.css */
 .panel {
     position: absolute;
     top: 0;
@@ -8,7 +9,7 @@
     border-left: 1px solid #1a1a2e;
     padding: 12px 10px;
     overflow-y: auto;
-    font-family: "JetBrains Mono",monospace;
+    font-family: "JetBrains Mono", monospace;
     font-size: 11px;
     color: #c0c0d8;
     z-index: 10
